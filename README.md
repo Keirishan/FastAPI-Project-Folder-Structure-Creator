@@ -51,9 +51,9 @@ This project is a **Template** for building FastAPI applications. You can follow
 https://github.com/Keirishan/FastAPI-Project-Folder-Structure-Creator.git
 cd FastAPI-Template
 ```
-### ** 2. If you like, modify the path or file structure **
+### **2. If you like, modify the path or file structure**
 
-### ** 3. Run the file with the below command**
+### **3. Run the file with the below command**
 ```
 python main.py
 ```
