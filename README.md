@@ -1,59 +1,110 @@
-# 🚀 FastAPI Project Structure Template
+# 🚀 FastAPI Project Structure Generators
 
-This repository provides a **well-organized folder structure** for building scalable FastAPI applications.  
+This repository provides **automated Python scripts** to generate production-ready FastAPI project structures with two different architectural patterns:
 
-## 📂 Project Structure
+1. **Layer-Based Architecture** (Traditional MVC-style)
+2. **Feature-Based Architecture** (Domain-driven approach)
+
+## 📜 Available Scripts
+
+### 1️⃣ Layer-Based Structure Generator
+**File:** `create_fastapi_layer_structure.py`
+
+Generates a project with **horizontal layers** where code is organized by technical concerns:
 ```
-├── app
-│   ├── __init__.py
-│   ├── main.py
-│   ├── dependencies.py
-│   ├── routers
-│   │   ├── __init__.py
-│   │   ├── items.py
-│   │   └── users.py
-│   ├── crud
-│   │   ├── __init__.py
-│   │   ├── item.py
-│   │   └── user.py
-│   ├── schemas
-│   │   ├── __init__.py
-│   │   ├── item.py
-│   │   └── user.py
-│   ├── models
-│   │   ├── __init__.py
-│   │   ├── item.py
-│   │   └── user.py
-│   ├── external_services
-│   │   ├── __init__.py
-│   │   ├── email.py
-│   │   └── notification.py
-│   └── utils
-│       ├── __init__.py
-│       ├── authentication.py
-│       └── validation.py
-├── tests
-│   ├── __init__.py
-│   ├── test_main.py
-│   ├── test_items.py
-│   └── test_users.py
-├── requirements.txt
-├── .gitignore
-└── README.md
----
+src/
+├── core/              # Configuration, security, logging
+├── db/                # Database setup
+├── modules/           # Business logic
+│   ├── auth/
+│   └── users/
+└── api/               # API routing
 ```
+
+**Usage:**
+```sh
+python create_fastapi_layer_structure.py my_project --output .
+```
+
+### 2️⃣ Feature-Based Structure Generator
+**File:** `create_fastapi_feature_structure.py`
+
+Generates a project with **vertical features** where each feature is self-contained:
+```
+src/
+├── features/          # Self-contained features
+│   ├── auth/
+│   │   ├── models.py
+│   │   ├── schemas.py
+│   │   ├── services.py
+│   │   ├── routes.py
+│   │   └── dependencies.py
+│   └── users/
+│       └── ... (same structure)
+└── shared/            # Cross-cutting concerns
+    ├── config/
+    ├── database/
+    ├── security/
+    └── utils/
+```
+
+**Usage:**
+```sh
+python create_fastapi_feature_structure.py my_project --output .
+```
+
+## 🎯 Which Architecture Should You Choose?
+
+### Layer-Based Architecture ✅
+- **Best for:** Small to medium projects, teams familiar with MVC
+- **Pros:** Clear separation of concerns, easy to understand
+- **Cons:** Can become monolithic as project grows
+
+### Feature-Based Architecture ✅
+- **Best for:** Large projects, microservices-ready, domain-driven design
+- **Pros:** High cohesion, easy to scale, feature isolation
+- **Cons:** Slightly more complex initial setup
+
 ## 🚀 Getting Started
-
-This project is a **Template** for building FastAPI applications. You can follow these steps to set up and start using it.  
 
 ### **1. Clone the Repository**
 ```sh
-https://github.com/Keirishan/FastAPI-Project-Folder-Structure-Creator.git
-cd FastAPI-Template
+git clone https://github.com/Keirishan/FastAPI-Project-Folder-Structure-Creator.git
+cd FastAPI-Project-Folder-Structure-Creator
 ```
-### **2. If you like, modify the path or file structure**
 
-### **3. Run the file with the below command**
+### **2. Choose Your Architecture**
+Run either script based on your preference:
+
+**For Layer-Based:**
+```sh
+python create_fastapi_layer_structure.py my_awesome_api
 ```
-python main.py
+
+**For Feature-Based:**
+```sh
+python create_fastapi_feature_structure.py my_awesome_api
 ```
+
+### **3. Set Up Your Generated Project**
+```sh
+cd my_awesome_api
+pip install .
+python scripts/init_db.py
+uvicorn my_awesome_api.main:app --reload
+```
+
+## 📦 Generated Project Features
+
+Both architectures include:
+- ✅ **JWT Authentication** with login/logout
+- ✅ **SQLAlchemy Async** with PostgreSQL
+- ✅ **Alembic Migrations**
+- ✅ **Pydantic Settings** with environment variables
+- ✅ **Structured Logging**
+- ✅ **Role-Based Access Control**
+- ✅ **Production-Ready Configuration**
+- ✅ **Admin User Seeding**
+
+## 📄 License
+MIT License - Feel free to use for your projects!
