@@ -11,7 +11,7 @@ def create_file(path: Path, content: str):
     print(f"Created: {path}")
 
 def generate_project(project_name: str, output_dir: str):
-    """Generates the FastAPI project structure."""
+    """Generates the FastAPI project structure with layer-based architecture."""
     
     base_path = Path(output_dir) / project_name
     src_path = base_path / "src" / project_name
@@ -100,7 +100,24 @@ logs/
     create_file(base_path / "README.md", f"""
 # {project_name.capitalize()} Backend
 
-Production-ready FastAPI backend with JWT authentication, SQLAlchemy (Async), and Alembic migrations.
+Production-ready FastAPI backend with **Layer-Based Architecture**, JWT authentication, SQLAlchemy (Async), and Alembic migrations.
+
+## Architecture
+
+This project follows a **layer-based (horizontal) structure** where code is organized by technical concerns:
+
+### Project Structure
+```
+{project_name}/
+├── src/{project_name}/
+│   ├── routers/          # API endpoints (Presentation Layer)
+│   ├── schemas/          # Pydantic models (DTOs)
+│   ├── models/           # Database models (Data Layer)
+│   ├── services/         # Business logic (Service Layer)
+│   ├── repositories/     # Data access (Repository Layer)
+│   ├── core/             # Config, security, logging
+│   └── db/               # Database setup
+```
 
 ## Setup
 
@@ -189,7 +206,7 @@ from alembic import context
 from {project_name}.core.config import get_settings
 from {project_name}.db.base import Base
 # Import models here to register them
-from {project_name}.modules.users.model import User
+from {project_name}.models.user import User
 
 config = context.config
 
@@ -482,110 +499,10 @@ async_session_maker = async_sessionmaker(
 
     # --- Modules: Auth ---
     
-    # src/<project>/modules/auth/router.py
-    create_file(src_path / "modules" / "auth" / "router.py", f"""
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from {project_name}.core.dependencies import get_db
-from {project_name}.modules.auth.schema import LoginRequest, TokenResponse
-from {project_name}.modules.auth.service import AuthService
-
-router = APIRouter(prefix="/auth", tags=["Authentication"])
-
-@router.post("/login", response_model=TokenResponse)
-async def login(
-    data: LoginRequest,
-    db: AsyncSession = Depends(get_db)
-):
-    service = AuthService(db)
-    return await service.login(data.username, data.password)
-""")
-
-    # src/<project>/modules/auth/schema.py
-    create_file(src_path / "modules" / "auth" / "schema.py", """
-from pydantic import BaseModel
-
-class LoginRequest(BaseModel):
-    username: str
-    password: str
-
-class TokenResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
-""")
-
-    # src/<project>/modules/auth/service.py
-    create_file(src_path / "modules" / "auth" / "service.py", f"""
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from {project_name}.modules.users.model import User
-from {project_name}.core.security import verify_password, create_access_token, create_refresh_token
-from {project_name}.core.exceptions import UnauthorizedError
-
-class AuthService:
-    def __init__(self, db: AsyncSession):
-        self.db = db
-
-    async def login(self, username: str, password: str):
-        result = await self.db.execute(select(User).where(User.username == username))
-        user = result.scalar_one_or_none()
-
-        if not user or not verify_password(password, user.hashed_password):
-            raise UnauthorizedError("Invalid credentials")
-        
-        if not user.is_active:
-            raise UnauthorizedError("User inactive")
-
-        token_data = {{"sub": str(user.id), "username": user.username, "role": user.role}}
-        return {{
-            "access_token": create_access_token(token_data),
-            "refresh_token": create_refresh_token(token_data)
-        }}
-""")
-
-    # src/<project>/modules/auth/dependencies.py
-    create_file(src_path / "modules" / "auth" / "dependencies.py", f"""
-from fastapi import Depends, HTTPException
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.ext.asyncio import AsyncSession
-from {project_name}.core.dependencies import get_db
-from {project_name}.core.security import decode_token
-from {project_name}.modules.users.model import User
-from sqlalchemy import select
-
-security = HTTPBearer()
-
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(get_db)
-) -> User:
-    try:
-        payload = decode_token(credentials.credentials)
-        user_id = payload.get("sub")
-        if not user_id:
-            raise HTTPException(status_code=401, detail="Invalid token")
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-    result = await db.execute(select(User).where(User.id == int(user_id)))
-    user = result.scalar_one_or_none()
+    # --- Models Layer (All database models together) ---
     
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    return user
-
-async def get_admin_user(user: User = Depends(get_current_user)) -> User:
-    if user.role != "admin":
-        raise HTTPException(status_code=403, detail="Admin privileges required")
-    return user
-""")
-
-    # --- Modules: Users ---
-    
-    # src/<project>/modules/users/model.py
-    create_file(src_path / "modules" / "users" / "model.py", f"""
+    # src/<project>/models/user.py
+    create_file(src_path / "models" / "user.py", f"""
 from sqlalchemy import Integer, String, Boolean, DateTime
 from sqlalchemy.orm import Mapped, mapped_column
 from datetime import datetime
@@ -603,17 +520,233 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 """)
 
-    # src/<project>/modules/users/router.py
-    create_file(src_path / "modules" / "users" / "router.py", f"""
+    # --- Schemas Layer (All Pydantic schemas together) ---
+    
+    # src/<project>/schemas/auth.py
+    create_file(src_path / "schemas" / "auth.py", """
+from pydantic import BaseModel
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+""")
+
+    # src/<project>/schemas/user.py
+    create_file(src_path / "schemas" / "user.py", """
+from pydantic import BaseModel, EmailStr
+from datetime import datetime
+
+class UserBase(BaseModel):
+    username: str
+    email: str | None = None
+
+class UserCreate(UserBase):
+    password: str
+
+class UserUpdate(BaseModel):
+    email: str | None = None
+    is_active: bool | None = None
+
+class UserResponse(UserBase):
+    id: int
+    role: str
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class UserMe(BaseModel):
+    id: int
+    username: str
+    email: str | None
+    role: str
+""")
+
+    # --- Repositories Layer (Data access logic) ---
+    
+    # src/<project>/repositories/user_repository.py
+    create_file(src_path / "repositories" / "user_repository.py", f"""
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from {project_name}.models.user import User
+from typing import Optional
+
+class UserRepository:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+    
+    async def get_by_id(self, user_id: int) -> Optional[User]:
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        return result.scalar_one_or_none()
+    
+    async def get_by_username(self, username: str) -> Optional[User]:
+        result = await self.db.execute(select(User).where(User.username == username))
+        return result.scalar_one_or_none()
+    
+    async def get_by_email(self, email: str) -> Optional[User]:
+        result = await self.db.execute(select(User).where(User.email == email))
+        return result.scalar_one_or_none()
+    
+    async def create(self, user: User) -> User:
+        self.db.add(user)
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user
+    
+    async def update(self, user: User) -> User:
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user
+    
+    async def delete(self, user: User) -> None:
+        await self.db.delete(user)
+        await self.db.commit()
+""")
+
+    # --- Services Layer (Business logic) ---
+    
+    # src/<project>/services/auth_service.py
+    create_file(src_path / "services" / "auth_service.py", f"""
+from sqlalchemy.ext.asyncio import AsyncSession
+from {project_name}.repositories.user_repository import UserRepository
+from {project_name}.core.security import verify_password, create_access_token, create_refresh_token
+from {project_name}.core.exceptions import UnauthorizedError
+
+class AuthService:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        self.user_repo = UserRepository(db)
+
+    async def login(self, username: str, password: str):
+        user = await self.user_repo.get_by_username(username)
+
+        if not user or not verify_password(password, user.hashed_password):
+            raise UnauthorizedError("Invalid credentials")
+        
+        if not user.is_active:
+            raise UnauthorizedError("User inactive")
+
+        token_data = {{"sub": str(user.id), "username": user.username, "role": user.role}}
+        return {{
+            "access_token": create_access_token(token_data),
+            "refresh_token": create_refresh_token(token_data)
+        }}
+""")
+
+    # src/<project>/services/user_service.py
+    create_file(src_path / "services" / "user_service.py", f"""
+from sqlalchemy.ext.asyncio import AsyncSession
+from {project_name}.repositories.user_repository import UserRepository
+from {project_name}.models.user import User
+from {project_name}.core.security import hash_password
+from {project_name}.core.exceptions import NotFoundError
+
+class UserService:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        self.user_repo = UserRepository(db)
+    
+    async def get_user_by_id(self, user_id: int) -> User:
+        user = await self.user_repo.get_by_id(user_id)
+        if not user:
+            raise NotFoundError("User not found")
+        return user
+    
+    async def create_user(self, username: str, password: str, email: str = None, role: str = "user") -> User:
+        hashed_pwd = hash_password(password)
+        user = User(
+            username=username,
+            hashed_password=hashed_pwd,
+            email=email,
+            role=role
+        )
+        return await self.user_repo.create(user)
+""")
+
+    # --- Dependencies ---
+    
+    # src/<project>/dependencies/auth.py
+    create_file(src_path / "dependencies" / "auth.py", f"""
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy.ext.asyncio import AsyncSession
+from {project_name}.core.dependencies import get_db
+from {project_name}.core.security import decode_token
+from {project_name}.models.user import User
+from {project_name}.repositories.user_repository import UserRepository
+
+security = HTTPBearer()
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: AsyncSession = Depends(get_db)
+) -> User:
+    try:
+        payload = decode_token(credentials.credentials)
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid token")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    user_repo = UserRepository(db)
+    user = await user_repo.get_by_id(int(user_id))
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    return user
+
+async def get_admin_user(user: User = Depends(get_current_user)) -> User:
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin privileges required")
+    return user
+""")
+
+    # --- Routers Layer (API endpoints) ---
+    
+    # src/<project>/routers/auth.py
+    create_file(src_path / "routers" / "auth.py", f"""
 from fastapi import APIRouter, Depends
-from {project_name}.modules.auth.dependencies import get_current_user, get_admin_user
-from {project_name}.modules.users.model import User
+from sqlalchemy.ext.asyncio import AsyncSession
+from {project_name}.core.dependencies import get_db
+from {project_name}.schemas.auth import LoginRequest, TokenResponse
+from {project_name}.services.auth_service import AuthService
+
+router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+@router.post("/login", response_model=TokenResponse)
+async def login(
+    data: LoginRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    service = AuthService(db)
+    return await service.login(data.username, data.password)
+""")
+
+    # src/<project>/routers/users.py
+    create_file(src_path / "routers" / "users.py", f"""
+from fastapi import APIRouter, Depends
+from {project_name}.dependencies.auth import get_current_user, get_admin_user
+from {project_name}.models.user import User
+from {project_name}.schemas.user import UserMe
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
-@router.get("/me")
+@router.get("/me", response_model=UserMe)
 async def get_me(user: User = Depends(get_current_user)):
-    return {{"id": user.id, "username": user.username, "role": user.role}}
+    return {{
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "role": user.role
+    }}
 
 @router.get("/admin-only")
 async def admin_route(user: User = Depends(get_admin_user)):
@@ -625,8 +758,8 @@ async def admin_route(user: User = Depends(get_admin_user)):
     # src/<project>/api/v1/router.py
     create_file(src_path / "api" / "v1" / "router.py", f"""
 from fastapi import APIRouter
-from {project_name}.modules.auth.router import router as auth_router
-from {project_name}.modules.users.router import router as users_router
+from {project_name}.routers.auth import router as auth_router
+from {project_name}.routers.users import router as users_router
 
 api_v1_router = APIRouter(prefix="/api/v1")
 api_v1_router.include_router(auth_router)
@@ -646,7 +779,7 @@ sys.path.append(str(Path(__file__).parent.parent / "src"))
 from sqlalchemy import select
 from {project_name}.db.session import engine, async_session_maker
 from {project_name}.db.base import Base
-from {project_name}.modules.users.model import User
+from {project_name}.models.user import User
 from {project_name}.core.security import hash_password
 
 async def init_db():
@@ -678,11 +811,11 @@ if __name__ == "__main__":
     asyncio.run(init_db())
 """)
 
-    print(f"\\nSuccessfully generated project '{project_name}' at {base_path}")
+    print(f"\nSuccessfully generated layer-based project '{project_name}' at {base_path}")
     print("Follow the instructions in README.md to get started.")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Generate a FastAPI backend project.")
+    parser = argparse.ArgumentParser(description="Generate a FastAPI backend project with layer-based architecture.")
     parser.add_argument("name", nargs="?", default="fastapi_backend", help="Project name")
     parser.add_argument("--output", default=".", help="Output directory")
     
