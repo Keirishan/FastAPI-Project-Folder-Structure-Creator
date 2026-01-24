@@ -13,12 +13,15 @@ This repository provides **automated Python scripts** to generate production-rea
 Generates a project with **horizontal layers** where code is organized by technical concerns:
 ```
 src/
+├── routers/           # API endpoints (Presentation Layer)
+├── schemas/           # Pydantic models (DTOs)
+├── models/            # Database models (Data Layer)
+├── services/          # Business logic (Service Layer)
+├── repositories/      # Data access (Repository Layer)
+├── dependencies/      # Shared dependencies
 ├── core/              # Configuration, security, logging
 ├── db/                # Database setup
-├── modules/           # Business logic
-│   ├── auth/
-│   └── users/
-└── api/               # API routing
+└── api/               # API versioning
 ```
 
 **Usage:**
@@ -56,14 +59,29 @@ python create_fastapi_feature_structure.py my_project --output .
 ## 🎯 Which Architecture Should You Choose?
 
 ### Layer-Based Architecture ✅
-- **Best for:** Small to medium projects, teams familiar with MVC
-- **Pros:** Clear separation of concerns, easy to understand
-- **Cons:** Can become monolithic as project grows
+- **Best for:** Small to medium projects, teams familiar with traditional MVC/3-tier architecture
+- **Pros:** 
+  - Clear separation of concerns by technical responsibility
+  - Easy to locate all routers, services, or models in one place
+  - Familiar to developers with traditional backend experience
+  - Repository pattern for cleaner data access
+- **Cons:** 
+  - Features are spread across multiple directories
+  - Can become harder to maintain as the project grows
+  - Risk of tight coupling between layers
 
 ### Feature-Based Architecture ✅
-- **Best for:** Large projects, microservices-ready, domain-driven design
-- **Pros:** High cohesion, easy to scale, feature isolation
-- **Cons:** Slightly more complex initial setup
+- **Best for:** Large projects, microservices-ready applications, domain-driven design
+- **Pros:** 
+  - High cohesion - each feature is self-contained
+  - Easy to scale and add new features independently
+  - Feature isolation makes testing easier
+  - Better for team collaboration (teams can own features)
+  - Easier to extract features into microservices later
+- **Cons:** 
+  - Slightly more complex initial setup
+  - May have some code duplication across features
+  - Requires discipline to maintain shared utilities properly
 
 ## 🚀 Getting Started
 
